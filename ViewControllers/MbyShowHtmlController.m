@@ -264,6 +264,41 @@
     [[NSURLCache sharedURLCache] removeAllCachedResponses];
     [[NSURLCache sharedURLCache] setDiskCapacity:0];
     [[NSURLCache sharedURLCache] setMemoryCapacity:0];
+    
+    if (IS_IOS_9) {
+        NSSet *websiteDataTypes = [NSSet setWithArray:@[
+                                                        WKWebsiteDataTypeDiskCache,
+                                                        WKWebsiteDataTypeOfflineWebApplicationCache,
+                                                        WKWebsiteDataTypeMemoryCache,
+                                                        WKWebsiteDataTypeLocalStorage,
+                                                        WKWebsiteDataTypeCookies,
+                                                        WKWebsiteDataTypeSessionStorage,
+                                                        WKWebsiteDataTypeIndexedDBDatabases,
+                                                        WKWebsiteDataTypeWebSQLDatabases
+                                                        ]];
+        NSDate *dateFrom = [NSDate dateWithTimeIntervalSince1970:0];
+        [[WKWebsiteDataStore defaultDataStore] removeDataOfTypes:websiteDataTypes modifiedSince:dateFrom completionHandler:^{
+            NSLog(@"删除缓存成功");
+        }];
+        
+        NSLog(@"websiteDataTypes--%@",websiteDataTypes);
+        NSLog(@"dateFrom--%@",dateFrom);
+        
+    }else{
+        
+        NSError *error;
+        NSString *libraryDir = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) firstObject];
+        NSString *bundleId  =  [[[NSBundle mainBundle] infoDictionary]objectForKey:@"CFBundleIdentifier"];
+        NSString *webkitFolderInLib = [NSString stringWithFormat:@"%@/WebKit",libraryDir];
+        NSString *webKitFolderInCaches = [NSString stringWithFormat:@"%@/Caches/%@/WebKit",libraryDir,bundleId];
+        NSString *webKitFolderInCachesfs = [NSString stringWithFormat:@"%@/Caches/%@/fsCachedData",libraryDir,bundleId];
+        [[NSFileManager defaultManager] removeItemAtPath:webKitFolderInCaches error:&error];
+        [[NSFileManager defaultManager] removeItemAtPath:webkitFolderInLib error:nil];
+        [[NSFileManager defaultManager] removeItemAtPath:webKitFolderInCachesfs error:nil];
+        
+    }
+    
+    
 }
 
 
