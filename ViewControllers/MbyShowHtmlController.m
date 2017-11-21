@@ -54,6 +54,9 @@
     WKWebViewConfiguration *configuration = [[WKWebViewConfiguration alloc] init];
     WKUserContentController *userContentController = [[WKUserContentController alloc] init];
     
+    [userContentController addScriptMessageHandler:self name:@"Camera"];
+    [userContentController addScriptMessageHandler:self name:@"PrintPage"];
+    
     configuration.userContentController = userContentController;
     
     WKPreferences *preferences = [WKPreferences new];
@@ -130,14 +133,21 @@
 
 #pragma mark WKWebView WKUIDelegate
 
+#pragma mark WKWebView WKUIDelegate
+
 - (void)webViewDidClose:(WKWebView *)webView {
-    NSLog(@"%s", __FUNCTION__);
+    NLog(@"%s", __FUNCTION__);
 }
-- (void)webView:(WKWebView *)webView runJavaScriptAlertPanelWithMessage:(NSString *)message initiatedByFrame:(WKFrameInfo *)frame completionHandler:(void (^)(void))completionHandler {
-
-    completionHandler();
-
-    NSLog(@"----%@----", message);
+- (void)userContentController:(WKUserContentController *)userContentController didReceiveScriptMessage:(WKScriptMessage *)message{
+    //JS调用OC方法
+    NLog(@"JS --- %@",message.name);
+    if ([message.name isEqualToString:@"Camera"]) {
+        [self setSepCamera];
+    }
+    if ([message.name isEqualToString:@"PrintPage"]) {
+        [self setSepPrint];
+    }
+    
 }
 
 
@@ -315,30 +325,28 @@
     return YES;
 }
 
-- (void)exitApplication {
-    UIWindow *window =  [UIApplication sharedApplication].keyWindow;
-    [UIView animateWithDuration:1.0f animations:^{
-        window.alpha = 0;
-        window.frame = CGRectMake(0, window.bounds.size.width, 0, 0);
-    } completion:^(BOOL finished) {
-        exit(0);
-    }];
-}
-
-- (void)loadAppDownLoad:(NSString *)url{
-
-    WKWebViewConfiguration *config = [WKWebViewConfiguration new];
-    config.preferences = [WKPreferences new];
-    config.preferences.minimumFontSize = 10;
-    config.preferences.javaScriptEnabled = true;
-    config.preferences.javaScriptCanOpenWindowsAutomatically = NO;
+#pragma mark 调用打印机功能
+- (void)setSepPrint{
     
-    WKWebView* webView = [[NSClassFromString(@"WKWebView") alloc] initWithFrame:CGRectZero configuration:config];
-    webView.navigationDelegate = self;
-    webView.scrollView.bounces = false;
-    webView.tag = WebViewTagAppDown;
-    NSURLRequest *req = [[NSURLRequest alloc]initWithURL:[NSURL URLWithString:url]];
-    [webView loadRequest:req];
+    UIPrintInteractionController *controller = [UIPrintInteractionController sharedPrintController];
+    void (^completionHandler)(UIPrintInteractionController *, BOOL, NSError *) =
+    ^(UIPrintInteractionController *printController, BOOL completed, NSError *error) {
+        if(!completed && error){
+            NSLog(@"FAILED! due to error in domain %@ with error code %zi",
+                  error.domain, error.code);
+        }
+    };
+    UIPrintInfo *printInfo = [UIPrintInfo printInfo];
+    printInfo.outputType = UIPrintInfoOutputGeneral;
+    printInfo.jobName = @"jlrchinaevhc";
+    printInfo.duplex = UIPrintInfoDuplexLongEdge;
+    controller.printInfo = printInfo;
+    controller.showsPageRange = YES;
+    
+    UIViewPrintFormatter *viewFormatter = [self.m_webView viewPrintFormatter];
+    viewFormatter.startPage = 0;
+    controller.printFormatter = viewFormatter;
+    [controller presentAnimated:true completionHandler:completionHandler];
 }
 
 
